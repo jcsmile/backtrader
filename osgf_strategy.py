@@ -1,7 +1,7 @@
+import logging
 import backtrader as bt
 import numpy as np
-import pandas as pd
-import logging
+
 
 # Creating an object
 logger = logging.getLogger()
@@ -25,8 +25,11 @@ class OneSidedGaussianFilter(bt.Indicator):
         coef2 = b1
         coef3 = -a1 * a1
         coef1 = 1 - coef2 - coef3
-        filt = coef1 * src + coef2 * np.roll(src, 1) + coef3 * np.roll(src, 2)
-        filt[:2] = src[:2]
+        filt = np.zeros_like(src)
+        filt[0] = src[0]
+        filt[1] = src[1]
+        for i in range(2, len(src)):
+            filt[i] = coef1 * src[i] + coef2 * filt[i-1] + coef3 * filt[i-2]
         return filt
 
     def _gaussian(self, size, x):
@@ -63,17 +66,13 @@ class OneSidedGaussianFilter(bt.Indicator):
         return sum
 
     def next(self):
-        src = self.data.close
+        src = self.data.close.get(size=len(self.data))
         lmax = self.params.smthper + 1
         out1 = self._smthMA(self.params.smthper, src, lmax)
         out = self._twopoless(out1, self.params.extrasmthper)
         
-        if len(out) > 1:
-            self.lines.out[0] = out[-1]
-            self.lines.sig[0] = out[-2]
-        else:
-            self.lines.out[0] = float('nan')
-            self.lines.sig[0] = float('nan')
+        self.lines.out[0] = out[-1]  # Corrected to match Pine Script logic
+        self.lines.sig[0] = out[-2] if len(out) > 1 else float('nan')
 
         if len(self) >= self.params.atrper:
             atr_value = self.atr[0]
@@ -90,8 +89,12 @@ class OsgfStrategy(bt.Strategy):
         self.osgf = OneSidedGaussianFilter()
 
     def next(self):
+        dt = self.datas[0].datetime.date(0)
+        # when out crosses above sig, buy
         if self.osgf.out[0] > self.osgf.sig[0] and self.osgf.out[-1] <= self.osgf.sig[-1]:
             self.buy(size=10)
+            logger.info(f"{dt}, OSGF Buy at {self.data.close[0]}, 10 shares")
+        # when out crosses below sig, sell
         elif self.osgf.out[0] < self.osgf.sig[0] and self.osgf.out[-1] >= self.osgf.sig[-1]:
             self.sell(size=10)
-
+            logger.info(f"{dt}, OSGF Sell at {self.data.close[0]}, 10 shares")
