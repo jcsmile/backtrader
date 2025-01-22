@@ -4,6 +4,8 @@ import backtrader as bt
 from datetime import datetime
 import osgf_strategy as osgf
 from sma_strategy import SMAStrategy
+from key_Indicator_analyzer import KeyIndicatorAnalyzer
+from trade_list_analyzer import TradeListAnalyzer
 
 import logging
 # Create and configure logger
@@ -85,6 +87,40 @@ def add_analyzers(cerebro):
     cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='_SharpeRatio_A')
     # 返回收益率时序
     cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='_TimeReturn')
+    # Key Indicator Analyzer
+    #cerebro.addanalyzer(KeyIndicatorAnalyzer, _name='key_indicator_analyzer')   
+    # Trade List Analyzer
+    cerebro.addanalyzer(TradeListAnalyzer, _name='trade_list_analyzer') 
+
+# Step 6: Get the analyzer results
+def get_my_analyzer(result,cerebro):
+    analyzer = {}
+    # 返回参数
+    #analyzer['period1'] = result.params.period1
+    #analyzer['period2'] = result.params.period2
+    # 提取年化收益
+    analyzer['年化收益率'] = result.analyzers._Returns.get_analysis()['rnorm']
+    analyzer['年化收益率（%）'] = result.analyzers._Returns.get_analysis()['rnorm100']
+    # 提取最大回撤(习惯用负的做大回撤，所以加了负号)
+    analyzer['最大回撤（%）'] = result.analyzers._DrawDown.get_analysis()['max']['drawdown'] * (-1)
+    # 提取夏普比率
+    analyzer['年化夏普比率'] = result.analyzers._SharpeRatio_A.get_analysis()['sharperatio']
+    # Get key indicator analyzer
+    #key_indicator_df, daily_details_dict = result.analyzers.key_indicator_analyzer.get_analysis_data(cerebro.benchdata, 'SPY')
+    # Get trade list analyzer
+    trade_list_df, trade_dict = result.analyzers.trade_list_analyzer.get_analysis()
+    analyzer['交易股票列表'] = trade_list_df
+    analyzer['交易股票买卖日期'] = trade_dict
+    return analyzer
+
+TIMEFRAMES = {
+    None: None,
+    'days': bt.TimeFrame.Days,
+    'weeks': bt.TimeFrame.Weeks,
+    'months': bt.TimeFrame.Months,
+    'years': bt.TimeFrame.Years,
+    'notimeframe': bt.TimeFrame.NoTimeFrame,
+}
 
 # Step 6: Run the backtest
 def run_backtest(filename="nvda_data.csv"):
@@ -92,16 +128,22 @@ def run_backtest(filename="nvda_data.csv"):
     ticker = "NVDA"
     daily_price_data = download_and_save_csv(ticker)
 
+    # Dowload benchmark data
+    benchmark_data = download_and_save_csv("SPY")
+
     # Read data from CSV
     #data = load_data_from_csv(filename)
 
     # Create Backtrader PandasData feed
     data_feed = CustomPandasData(dataname=daily_price_data)
+    data_feed_benchmark = CustomPandasData(dataname=benchmark_data) 
 
     # Create Cerebro instance
     cerebro = bt.Cerebro()
     cerebro.addstrategy(osgf.OsgfStrategy)  # Add the test strategy
     cerebro.adddata(data_feed, name = ticker)  # Add NVDA data
+    #cerebro.addobserver(bt.observers.Benchmark,data=benchmark_data,timeframe=TIMEFRAMES["notimeframe"])
+    
     cerebro.broker.set_cash(100000.0)  # Initial cash
     cerebro.broker.setcommission(commission=0.001)  # Commission for trades
 
@@ -110,37 +152,19 @@ def run_backtest(filename="nvda_data.csv"):
     print(f"Starting Portfolio Value: ${cerebro.broker.getvalue():,.2f}")
 
     # Run backtest
-    result = cerebro.run()
+    result = cerebro.run(tradehistory=True)
 
     # Print final cash
     print(f"Final Portfolio Value: ${cerebro.broker.getvalue():,.2f}")
 
-    # Print Analyzers
-    print("--------------- AnnualReturn -----------------")
-    print(result[0].analyzers._AnnualReturn.get_analysis())
-    print("--------------- DrawDown -----------------")
-    print(result[0].analyzers._DrawDown.get_analysis())
-    print("--------------- Returns -----------------")
-    print(result[0].analyzers._Returns.get_analysis())
-    print("--------------- SharpeRatio -----------------")
-    print(result[0].analyzers._SharpeRatio.get_analysis())
-    print("--------------- SharpeRatio_A -----------------")
-    print(result[0].analyzers._SharpeRatio_A.get_analysis())
+    ret = []
+    for i, res in enumerate(result):
+        ret.append(get_my_analyzer(res, cerebro))
+        print("--------------- analyzers -----------------")
+        print(ret[i])
+        
+    pd.DataFrame(ret).to_csv('result.csv', index=False)
 
-    # 常用指标提取
-    analyzer = {}
-    # 提取年化收益
-    analyzer['年化收益率'] = result[0].analyzers._Returns.get_analysis()['rnorm']
-    analyzer['年化收益率（%）'] = result[0].analyzers._Returns.get_analysis()['rnorm100']
-    # 提取最大回撤
-    analyzer['最大回撤（%）'] = result[0].analyzers._DrawDown.get_analysis()['max']['drawdown'] * (-1)
-    # 提取夏普比率
-    analyzer['年化夏普比率'] = result[0].analyzers._SharpeRatio_A.get_analysis()['sharperatio']
-    print("--------------- analyzers -----------------")
-    print(analyzer)
-
-    # Daily return series
-    ret = pd.Series(result[0].analyzers._TimeReturn.get_analysis())
     # Plot the results
     cerebro.plot()
 
