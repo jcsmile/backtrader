@@ -1,3 +1,9 @@
+import logging
+import backtrader as bt
+import numpy as np
+
+# Creating an object
+logger = logging.getLogger()
 class SMAStrategy(bt.Strategy):
     def __init__(self):
         self.sma20 = bt.indicators.SimpleMovingAverage(period=20)  # 20-day SMA
