@@ -88,7 +88,7 @@ def add_analyzers(cerebro):
     # 返回收益率时序
     cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='_TimeReturn')
     # Key Indicator Analyzer
-    #cerebro.addanalyzer(KeyIndicatorAnalyzer, _name='key_indicator_analyzer')   
+    cerebro.addanalyzer(KeyIndicatorAnalyzer, _name='key_indicator_analyzer')   
     # Trade List Analyzer
     cerebro.addanalyzer(TradeListAnalyzer, _name='trade_list_analyzer') 
 
@@ -105,12 +105,17 @@ def get_my_analyzer(result,cerebro):
     analyzer['最大回撤（%）'] = result.analyzers._DrawDown.get_analysis()['max']['drawdown'] * (-1)
     # 提取夏普比率
     analyzer['年化夏普比率'] = result.analyzers._SharpeRatio_A.get_analysis()['sharperatio']
-    # Get key indicator analyzer
-    #key_indicator_df, daily_details_dict = result.analyzers.key_indicator_analyzer.get_analysis_data(cerebro.benchdata, 'SPY')
     # Get trade list analyzer
     trade_list_df, trade_dict = result.analyzers.trade_list_analyzer.get_analysis()
     analyzer['交易股票列表'] = trade_list_df
     analyzer['交易股票买卖日期'] = trade_dict
+    
+    # Dowload benchmark data
+    benchmark_data = download_and_save_csv("SPY")
+    # Get key indicator analyzer
+    key_indicator_df, daily_details_dict = result.analyzers.key_indicator_analyzer.get_analysis_data(benchmark_data, 'SPY')
+    analyzer['重要指标'] = key_indicator_df
+    analyzer['每日详情'] = daily_details_dict
     return analyzer
 
 TIMEFRAMES = {
@@ -128,21 +133,15 @@ def run_backtest(filename="nvda_data.csv"):
     ticker = "NVDA"
     daily_price_data = download_and_save_csv(ticker)
 
-    # Dowload benchmark data
-    benchmark_data = download_and_save_csv("SPY")
-
     # Read data from CSV
     #data = load_data_from_csv(filename)
 
     # Create Backtrader PandasData feed
-    data_feed = CustomPandasData(dataname=daily_price_data)
-    data_feed_benchmark = CustomPandasData(dataname=benchmark_data) 
-
+    data_feed = CustomPandasData(dataname=daily_price_data) 
     # Create Cerebro instance
     cerebro = bt.Cerebro()
     cerebro.addstrategy(osgf.OsgfStrategy)  # Add the test strategy
     cerebro.adddata(data_feed, name = ticker)  # Add NVDA data
-    #cerebro.addobserver(bt.observers.Benchmark,data=benchmark_data,timeframe=TIMEFRAMES["notimeframe"])
     
     cerebro.broker.set_cash(100000.0)  # Initial cash
     cerebro.broker.setcommission(commission=0.001)  # Commission for trades
