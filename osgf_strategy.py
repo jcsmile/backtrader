@@ -79,7 +79,7 @@ class OneSidedGaussianFilter(bt.Indicator):
             self.lines.smax[0] = self.lines.out[0] + atr_value * self.params.mult
             self.lines.smin[0] = self.lines.out[0] - atr_value * self.params.mult
 
-            logger.info(f"out: {self.lines.out[0]}, sig: {self.lines.sig[0]}, smax: {self.lines.smax[0]}, smin: {self.lines.smin[0]}")
+            logger.debug(f"out: {self.lines.out[0]}, sig: {self.lines.sig[0]}, smax: {self.lines.smax[0]}, smin: {self.lines.smin[0]}")
         else:
             self.lines.smax[0] = float('nan')
             self.lines.smin[0] = float('nan')
@@ -92,9 +92,9 @@ class OsgfStrategy(bt.Strategy):
         dt = self.datas[0].datetime.date(0)
         # when out crosses above sig, buy
         if self.osgf.out[0] > self.osgf.sig[0] and self.osgf.out[-1] <= self.osgf.sig[-1]:
-            self.buy(size=10)
-            logger.info(f"{dt}, OSGF Buy at {self.data.close[0]}, 10 shares")
+            self.buy(size=100)
+            logger.debug(f"{dt}, OSGF Buy at {self.data.close[0]}, 10 shares")
         # when out crosses below sig, sell
         elif self.osgf.out[0] < self.osgf.sig[0] and self.osgf.out[-1] >= self.osgf.sig[-1]:
-            self.sell(size=10)
-            logger.info(f"{dt}, OSGF Sell at {self.data.close[0]}, 10 shares")
+            self.sell(size=100)
+            logger.debug(f"{dt}, OSGF Sell at {self.data.close[0]}, 10 shares")
