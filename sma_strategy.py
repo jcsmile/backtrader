@@ -19,20 +19,20 @@ class SMAStrategy(bt.Strategy):
 
         current_sma20 = self.sma20[0]
         previous_sma20 = self.sma20[-1]  # Previous day's sma20
-
+        shares = 100
         # Check for "Price up cross SMA5" (close price crosses above 5-day SMA) during an uptrend
         if previous_close <= previous_sma5 and current_close >= current_sma5 and current_sma5 > current_sma20 :
-            self.buy(size=10)
-            logger.info(f"{dt}, Price up cross Buy at {self.data.close[0]}, 10 shares")
+            self.buy(size=shares)
+            logger.info(f"{dt}, Price up cross Buy at {self.data.close[0]}, {shares} shares")
         # Check for "Golden Cross" (5-day SMA crosses above 20-day SMA) 
         elif previous_sma5 < previous_sma20 and current_sma5 >= current_sma20:
-            self.buy(size=10)
-            logger.info(f"{dt}, Golden Cross Buy at {self.data.close[0]}, 10 shares")     
+            self.buy(size=shares)
+            logger.info(f"{dt}, Golden Cross Buy at {self.data.close[0]}, {shares} shares")     
         # Check for "Death Cross" (5-day SMA crosses below 20-day SMA)
         elif previous_sma5 > previous_sma20 and current_sma5 <= current_sma20:
-            self.sell(size=10)
-            logger.info(f"{dt}, Death Cross Sell at {self.data.close[0]}, 10 shares")
+            self.sell(size=shares)
+            logger.info(f"{dt}, Death Cross Sell at {self.data.close[0]}, {shares} shares")
         # Check for "Price down cross SMA5" (close price crosses below 5-day SMA) during a downtrend
         elif previous_close > previous_sma5 and current_close <= current_sma5 and current_sma5 < current_sma20:
-            self.sell(size=10)
-            logger.info(f"{dt}, Price down cross Sell at {self.data.close[0]}, 10 shares")
+            self.sell(size=shares)
+            logger.info(f"{dt}, Price down cross Sell at {self.data.close[0]}, {shares} shares")

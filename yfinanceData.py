@@ -140,7 +140,7 @@ def run_backtest(filename="nvda_data.csv"):
     data_feed = CustomPandasData(dataname=daily_price_data) 
     # Create Cerebro instance
     cerebro = bt.Cerebro()
-    cerebro.addstrategy(osgf.OsgfStrategy)  # Add the test strategy
+    cerebro.addstrategy(SMAStrategy)  # Add the test strategy
     cerebro.adddata(data_feed, name = ticker)  # Add NVDA data
     
     cerebro.broker.set_cash(100000.0)  # Initial cash
