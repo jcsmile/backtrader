@@ -54,6 +54,7 @@ def download_and_save_csv(ticker="NVDA", start="2022-01-01", end="2025-01-01", f
 def load_data_from_csv(filename="nvda_data.csv"):
     # Read CSV to pandas DataFrame
     data = pd.read_csv(filename, parse_dates=['datetime'])
+    data.set_index('datetime', inplace=True)
     return data
 
 # Step 3: Custom Pandas Data Feed for Backtrader
@@ -131,16 +132,17 @@ TIMEFRAMES = {
 def run_backtest(filename="nvda_data.csv"):
     # Download and save data
     ticker = "NVDA"
-    daily_price_data = download_and_save_csv(ticker)
+    #daily_price_data = download_and_save_csv(ticker)
 
     # Read data from CSV
-    #data = load_data_from_csv(filename)
+    filename = f"{ticker.lower()}_data.csv"
+    daily_price_data = load_data_from_csv(filename)
 
     # Create Backtrader PandasData feed
     data_feed = CustomPandasData(dataname=daily_price_data) 
     # Create Cerebro instance
     cerebro = bt.Cerebro()
-    cerebro.addstrategy(SMAStrategy)  # Add the test strategy
+    cerebro.addstrategy(SMAStrategy, short_period=5, long_period=10)  # Add the test strategy
     cerebro.adddata(data_feed, name = ticker)  # Add NVDA data
     
     cerebro.broker.set_cash(100000.0)  # Initial cash
