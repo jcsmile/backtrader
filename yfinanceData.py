@@ -6,8 +6,10 @@ import osgf_strategy as osgf
 from sma_strategy import SMAStrategy
 from key_Indicator_analyzer import KeyIndicatorAnalyzer
 from trade_list_analyzer import TradeListAnalyzer
-
+from dotenv import load_dotenv
+import os
 import logging
+
 # Create and configure logger
 logging.basicConfig(level=logging.INFO,
                     format='%(message)s'
@@ -20,12 +22,12 @@ logger = logging.getLogger()
 # Test messages
 logger.debug("Harmless debug Message")  
 logger.info("Just an information")
-logger.warning("Its a Warning")
-logger.error("Did you try to divide by zero")
-logger.critical("Internet is down")
+#logger.warning("Its a Warning")
+#logger.error("Error logging")
+#logger.critical("Critical logging")
 
 # Step 1: Download NVDA daily stock data using yfinance
-def download_and_save_csv(ticker="NVDA", start="2022-01-01", end="2025-01-01", filename="nvda_data.csv"):
+def download_and_save_csv(ticker="NVDA", start="2022-01-01", end="2025-02-19", filename="nvda_data.csv", savefile=False):
     # Download data
     stock_data = yf.download(ticker, start=start, end=end, interval='1d')
 
@@ -33,20 +35,25 @@ def download_and_save_csv(ticker="NVDA", start="2022-01-01", end="2025-01-01", f
     if isinstance(stock_data.columns, pd.MultiIndex):
         stock_data.columns = [col[0] for col in stock_data.columns]  # Take the first level ('Close', 'Open', etc.)
 
-    stock_data.reset_index(inplace=True)  # Ensure Date is a regular column
     stock_data['sec_code'] = ticker  # Add security code (ticker)
     stock_data['openinterest'] = 0  # Set open interest to 0 (not used in equities)
     
     # Rename columns to match backtrader expected format
-    stock_data.rename(columns={'Date': 'datetime', 'Open': 'open', 'High': 'high', 'Low': 'low', 
+    stock_data.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 
                                'Close': 'close', 'Volume': 'volume'}, inplace=True)
     
+    #stock_data.reset_index(inplace=True)  # Ensure Date is a regular column
+    # Convert DatetimeIndex to a column
+    stock_data['datetime'] = stock_data.index
     # Select columns in required order
     stock_data = stock_data[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'sec_code']]
-    stock_data.set_index('datetime', inplace=True)
+    
+    #stock_data.rename(columns={'Datetime': 'datetime'}, inplace=True)
+    #stock_data.set_index('datetime', inplace=True)
     # Save to CSV
-    #stock_data.to_csv(filename, index=False)
-    #print(f"Data saved to {filename}")
+    if(savefile):
+        stock_data.to_csv(filename, index=False)
+        print(f"Data saved to {filename}")
     return stock_data
 
 
@@ -113,6 +120,7 @@ def get_my_analyzer(result,cerebro):
     
     # Dowload benchmark data
     benchmark_data = download_and_save_csv("SPY")
+    #benchmark_data = load_data_from_csv("spy_data.csv")
     # Get key indicator analyzer
     key_indicator_df, daily_details_dict = result.analyzers.key_indicator_analyzer.get_analysis_data(benchmark_data, 'SPY')
     analyzer['重要指标'] = key_indicator_df
@@ -129,20 +137,34 @@ TIMEFRAMES = {
 }
 
 # Step 6: Run the backtest
-def run_backtest(filename="nvda_data.csv"):
+def run_backtest():
+    # Load environment variables from .env file
+    load_dotenv()
+
+    # Access environment variables
+    api_key = os.getenv('API_KEY')
+    secret_key = os.getenv('SECRET_KEY')
+
+    print(f"API_KEY: {api_key}")
+    print(f"SECRET_KEY: {secret_key}")
+    
     # Download and save data
-    ticker = "NVDA"
-    #daily_price_data = download_and_save_csv(ticker)
+    ticker = "HIMS"
+    filename = f"{ticker.lower()}_data.csv"
+    daily_price_data = download_and_save_csv(ticker = ticker, start="2022-01-01", end="2025-02-19",filename=filename, savefile=True)
 
     # Read data from CSV
-    filename = f"{ticker.lower()}_data.csv"
     daily_price_data = load_data_from_csv(filename)
 
     # Create Backtrader PandasData feed
     data_feed = CustomPandasData(dataname=daily_price_data) 
     # Create Cerebro instance
     cerebro = bt.Cerebro()
-    cerebro.addstrategy(SMAStrategy, short_period=5, long_period=10)  # Add the test strategy
+    #cerebro.addstrategy(SMAStrategy, short_period=5, long_period=10)  # Add the test strategy
+    # add optimizer of strategy
+    cerebro.optstrategy(SMAStrategy, short_period=range(3, 6, 1), long_period=range(10, 21, 10))
+
+    # Add data feed
     cerebro.adddata(data_feed, name = ticker)  # Add NVDA data
     
     cerebro.broker.set_cash(100000.0)  # Initial cash
@@ -153,14 +175,14 @@ def run_backtest(filename="nvda_data.csv"):
     print(f"Starting Portfolio Value: ${cerebro.broker.getvalue():,.2f}")
 
     # Run backtest
-    result = cerebro.run(tradehistory=True)
+    result = cerebro.run(tradehistory=True,maxcpus=1)
 
     # Print final cash
     print(f"Final Portfolio Value: ${cerebro.broker.getvalue():,.2f}")
 
     ret = []
     for i, res in enumerate(result):
-        ret.append(get_my_analyzer(res, cerebro))
+        ret.append(get_my_analyzer(res[0], cerebro))
         print("--------------- analyzers -----------------")
         print(ret[i])
         
