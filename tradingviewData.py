@@ -10,7 +10,7 @@ class TradingViewData:
     A class to handle downloading, saving, and loading stock data using TradingView.
     """
 
-    def __init__(self, max_years=5):
+    def __init__(self, max_years=5, tv_user=None, tv_password=None):
         """
         Initialize the TradingViewData class.
 
@@ -18,7 +18,10 @@ class TradingViewData:
         max_years (int): The maximum number of years of historical data to download.
         """
         self.max_years = max_years
-        self.tv = TvDatafeed()
+        if tv_user and tv_password:
+            self.tv = TvDatafeed(username=tv_user, password=tv_password)    
+        else:
+            self.tv = TvDatafeed()
 
     def refresh_data(self, ticker, exchange):
         """
