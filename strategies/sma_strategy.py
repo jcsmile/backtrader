@@ -18,6 +18,7 @@ class SMAStrategy(bt.Strategy):
         self.sma_s = bt.indicators.SimpleMovingAverage(period=5)  # 5-day SMA
         self.logger = logging.getLogger()
         self.order = None
+        #self.logger.info('SMAStrategy created：short_period=%d, long_period=%d' % (self.params.short_period, self.params.long_period))
 
     def log(self, txt, dt=None):
         ''' Logging function for this strategy'''
