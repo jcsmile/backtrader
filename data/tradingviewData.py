@@ -46,13 +46,16 @@ class TradingViewData:
         else:
             # Load existing data and update with the latest data
             existing_data = pd.read_csv(filename, parse_dates=['datetime'])
-            last_date = existing_data['datetime'].max()
-            today = datetime.today()
+            last_date = existing_data['datetime'].max().date()
+            today = datetime.today().date()
             if last_date < today:
-                start = (last_date + pd.DateOffset(days=1)).strftime('%Y-%m-%d')
+                start = last_date.strftime('%Y-%m-%d')
                 end = today.strftime('%Y-%m-%d')
                 stock_data = self.download_and_save_csv(ticker=ticker, exchange=exchange, start=start, end=end, filename=filename, savefile=False)
-
+                
+                if stock_data is None or stock_data.empty:
+                    return existing_data
+                
                 # Combine existing data with new data
                 daily_price_data = pd.concat([existing_data, stock_data]).drop_duplicates(subset=['datetime']).sort_values(by='datetime')
                 daily_price_data.to_csv(filename, index=False)
@@ -76,6 +79,9 @@ class TradingViewData:
         """
         # Download data
         n_days = self.calculate_days_between(start, end)
+        if n_days <= 0:
+            return None
+        
         if n_days <= 365:
             bars = n_days
         else:
@@ -92,7 +98,7 @@ class TradingViewData:
                                    'close': 'close', 'volume': 'volume'}, inplace=True)
 
         # Convert DatetimeIndex to a column
-        stock_data['datetime'] = stock_data.index
+        stock_data = stock_data.reset_index().rename(columns={'index': 'datetime'})
         stock_data['datetime'] = pd.to_datetime(stock_data['datetime'])  # Ensure datetime is in correct format
         # Select columns in required order
         stock_data = stock_data[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'sec_code']]
@@ -106,6 +112,7 @@ class TradingViewData:
             else:
                 stock_data.to_csv(filename, index=False)
             print(f"Price data saved to {filename}")
+        stock_data.set_index('datetime', inplace=True)
         return stock_data
 
     def load_data_from_csv(self, ticker):
@@ -145,11 +152,11 @@ class TradingViewData:
                                    'close': 'close', 'volume': 'volume'}, inplace=True)
 
         # Convert DatetimeIndex to a column
-        stock_data['datetime'] = stock_data.index
+        stock_data = stock_data.reset_index().rename(columns={'index': 'datetime'})
         stock_data['datetime'] = pd.to_datetime(stock_data['datetime'])  # Ensure datetime is in correct format
         # Select columns in required order
         stock_data = stock_data[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'sec_code']]
-
+        stock_data.set_index('datetime', inplace=True)
         return stock_data
     
     def calculate_days_between(self, start_date, end_date):
@@ -180,7 +187,7 @@ class CustomPandasData(bt.feeds.PandasData):
         ('openinterest', 'openinterest'),
         ('ticker', 'sec_code'),
     )
-
+        
 if __name__ == "__main__":
     tvd = TradingViewData()
     # Download and save data
@@ -188,6 +195,8 @@ if __name__ == "__main__":
     exchange = "NASDAQ"
     
     daily_price_data = tvd.refresh_data(ticker, exchange)
+    # Ensure the datetime column is in datetime format
+    daily_price_data['datetime'] = pd.to_datetime(daily_price_data['datetime'])
     print(daily_price_data)
 
     # Read data from CSV

@@ -50,7 +50,7 @@ class YFinanceData:
                 # Combine existing data with new data
                 daily_price_data = pd.concat([existing_data, stock_data]).drop_duplicates(subset=['datetime']).sort_values(by='datetime')
                 daily_price_data.to_csv(filename, index=False)
-
+                daily_price_data.set_index('datetime', inplace=True)
         return daily_price_data
 
     # Step 1: Download Stock daily price data using yfinance
@@ -86,7 +86,7 @@ class YFinanceData:
         stock_data['datetime'] = stock_data.index
         # Select columns in required order
         stock_data = stock_data[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'sec_code']]
-        
+        stock_data.set_index('datetime', inplace=True)
         # Append to CSV if it exists, otherwise create a new file
         if savefile:
             if os.path.exists(filename):
