@@ -4,6 +4,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import os
 from tvDatafeed import TvDatafeed, Interval
+from custom_pandas_data import CustomPandasData
 
 class TradingViewData:
     """
@@ -174,20 +175,7 @@ class TradingViewData:
         end = datetime.strptime(end_date, '%Y-%m-%d')
         delta = end - start
         return delta.days
-
-# Step 3: Custom Pandas Data Feed for Backtrader
-class CustomPandasData(bt.feeds.PandasData):
-    params = (
-        ('datetime', None),
-        ('open', 'open'),
-        ('high', 'high'),
-        ('low', 'low'),
-        ('close', 'close'),
-        ('volume', 'volume'),
-        ('openinterest', 'openinterest'),
-        ('ticker', 'sec_code'),
-    )
-        
+      
 if __name__ == "__main__":
     tvd = TradingViewData()
     # Download and save data

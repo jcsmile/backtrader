@@ -4,6 +4,7 @@ import backtrader as bt
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from data.custom_pandas_data import CustomPandasData
 
 class YFinanceData:
     """
@@ -106,20 +107,6 @@ class YFinanceData:
         data = pd.read_csv(filename, parse_dates=['datetime'])
         data.set_index('datetime', inplace=True)
         return data
-
-# Step 3: Custom Pandas Data Feed for Backtrader
-class CustomPandasData(bt.feeds.PandasData):
-    params = (
-        ('datetime', None),
-        ('open', 'open'),
-        ('high', 'high'),
-        ('low', 'low'),
-        ('close', 'close'),
-        ('volume', 'volume'),
-        ('openinterest', 'openinterest'),
-        ('ticker','sec_code'),
-    )
-
 
 if __name__ == "__main__":
     yfd = YFinanceData()
