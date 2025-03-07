@@ -5,8 +5,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 from data.custom_pandas_data import CustomPandasData
+from data.source_data import SourceData
 
-class YFinanceData:
+class YFinanceData(SourceData):
     """
     A class to handle downloading, saving, and loading stock data using yfinance.
     """
@@ -19,7 +20,7 @@ class YFinanceData:
         """
         self.max_years = max_years
 
-    def refresh_data(self, ticker):
+    def refresh_data(self, ticker, exchange=None):
         """
         Refresh the investment daily price data for a given ticker. If the data is already downloaded,
         it will be updated with the latest data. If not, it will download the past max_years of data.
@@ -38,7 +39,7 @@ class YFinanceData:
             # Download the past max_years of data
             today = datetime.today().strftime('%Y-%m-%d')
             start = (datetime.today() - pd.DateOffset(years=self.max_years)).strftime('%Y-%m-%d')
-            daily_price_data =self.download_and_save_csv(ticker = ticker, start = start, end=today,filename=filename, savefile=True)
+            daily_price_data =self.download_and_save_csv(ticker = ticker, exchange = None, start = start, end=today,filename=filename, savefile=True)
         else:
             # Load existing data and update with the latest data
             existing_data = pd.read_csv(filename, parse_dates=['datetime'])
@@ -46,16 +47,24 @@ class YFinanceData:
             today = datetime.today().date()
             if last_date < today:
                 start = (last_date + pd.DateOffset(days=1)).strftime('%Y-%m-%d')
-                stock_data = self.download_and_save_csv(ticker = ticker, start = start, end=today.strftime('%Y-%m-%d'),filename=filename, savefile=False)
+                stock_data = self.download_and_save_csv(ticker = ticker, exchange=None, start = start, end=today.strftime('%Y-%m-%d'),filename=filename, savefile=False)
+                if stock_data is None or stock_data.empty:
+                    existing_data.set_index('datetime', inplace=True)   
+                    return existing_data
+                
+                # Ensure the datetime column is in datetime format
+                stock_data = stock_data.reset_index().rename(columns={'index': 'datetime'})
+                stock_data['datetime'] = pd.to_datetime(stock_data['datetime']) 
 
                 # Combine existing data with new data
                 daily_price_data = pd.concat([existing_data, stock_data]).drop_duplicates(subset=['datetime']).sort_values(by='datetime')
                 daily_price_data.to_csv(filename, index=False)
-                daily_price_data.set_index('datetime', inplace=True)
+                
+        daily_price_data.set_index('datetime', inplace=True)
         return daily_price_data
 
     # Step 1: Download Stock daily price data using yfinance
-    def download_and_save_csv(self, ticker, start, end, filename, savefile=False):
+    def download_and_save_csv(self, ticker, exchange, start, end, filename, savefile=False):
         """
         Download stock data using yfinance and save it to a CSV file.
 

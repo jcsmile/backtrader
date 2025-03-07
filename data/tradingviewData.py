@@ -4,9 +4,10 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import os
 from tvDatafeed import TvDatafeed, Interval
-from custom_pandas_data import CustomPandasData
+from data.custom_pandas_data import CustomPandasData
+from data.source_data import SourceData
 
-class TradingViewData:
+class TradingViewData(SourceData):
     """
     A class to handle downloading, saving, and loading stock data using TradingView.
     """
@@ -55,12 +56,15 @@ class TradingViewData:
                 stock_data = self.download_and_save_csv(ticker=ticker, exchange=exchange, start=start, end=end, filename=filename, savefile=False)
                 
                 if stock_data is None or stock_data.empty:
+                    existing_data.set_index('datetime', inplace=True)
                     return existing_data
-                
+                # Ensure the datetime column is in datetime format
+                stock_data = stock_data.reset_index().rename(columns={'index': 'datetime'})
+                stock_data['datetime'] = pd.to_datetime(stock_data['datetime'])               
                 # Combine existing data with new data
                 daily_price_data = pd.concat([existing_data, stock_data]).drop_duplicates(subset=['datetime']).sort_values(by='datetime')
                 daily_price_data.to_csv(filename, index=False)
-
+        daily_price_data.set_index('datetime', inplace=True)
         return daily_price_data
 
     def download_and_save_csv(self, ticker, exchange, start, end, filename, savefile=False):
@@ -113,7 +117,9 @@ class TradingViewData:
             else:
                 stock_data.to_csv(filename, index=False)
             print(f"Price data saved to {filename}")
+
         stock_data.set_index('datetime', inplace=True)
+
         return stock_data
 
     def load_data_from_csv(self, ticker):
