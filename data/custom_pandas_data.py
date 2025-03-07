@@ -1,4 +1,6 @@
 
+import backtrader as bt
+
 class CustomPandasData(bt.feeds.PandasData):
     params = (
         ('datetime', None),
